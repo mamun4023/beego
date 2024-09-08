@@ -1,8 +1,13 @@
 package controllers
 
 import (
-	"encoding/json"
+
 	// "fmt"
+
+	"encoding/json"
+	"fmt"
+	"strconv"
+
 	"net/http"
 	"server/models"
 
@@ -16,18 +21,6 @@ type UserController struct {
 }
 
 func (c *UserController) Get() {
-	// Define some data to send as JSON
-	// response := map[string]interface{}{
-	// 	"name":  "John Doe",
-	// 	"email": "johndoe@example.com",
-	// }
-
-	// // Set the data as JSON
-	// c.Data["json"] = user
-
-	// // Serve the JSON response
-	// c.ServeJSON()
-
 	// retrive data from db
 	o := orm.NewOrm()
 	var users []models.Users
@@ -56,14 +49,10 @@ func (c *UserController) Get() {
 	c.ServeJSON()
 }
 
-type UserInput struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
-
 // adding user
 func (c *UserController) Post() {
-	var input UserInput
+
+	var input models.Users
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &input)
 
 	if err != nil {
@@ -73,12 +62,75 @@ func (c *UserController) Post() {
 		return
 	}
 
-	// response with
-	response := map[string]string{
-		"message": "Data received successfully",
-		"name":    input.Name,
-		"email":   input.Email,
+	o := orm.NewOrm()
+	_, error := o.Insert(&input)
+
+	if error != nil {
+		c.Data["json"] = map[string]string{
+			"error": "Faled to add",
+		}
+	} else {
+		c.Data["json"] = map[string]string{
+			"message": "user saved",
+		}
 	}
-	c.Data["json"] = response
+
+	c.ServeJSON()
+}
+
+// update user data
+func (c *UserController) Patch() {
+	userId := c.Ctx.Input.Param(":id")
+	id, _ := strconv.Atoi(userId)
+	user := models.Users{Id: id}
+	o := orm.NewOrm()
+
+	var input models.Users
+	bodyerr := json.Unmarshal(c.Ctx.Input.RequestBody, &input)
+
+	if bodyerr != nil {
+		fmt.Println(input)
+	}
+
+	if err := o.Read(&user); err == nil {
+		user.Name = input.Name
+		user.Email = input.Email
+
+		if num, err := o.Update(&user); err == nil {
+			successResponse := map[string]interface{}{
+				"message": "updated",
+				"num":     num,
+			}
+			c.Data["json"] = successResponse
+		} else {
+			errorResponse := map[string]interface{}{
+				"message": "Faled to update",
+			}
+			c.Data["json"] = errorResponse
+		}
+
+		c.ServeJSON()
+	}
+
+}
+
+// remove user
+func (c *UserController) Delete() {
+	userId := c.Ctx.Input.Param(":id")
+	num, err := strconv.Atoi(userId)
+
+	o := orm.NewOrm()
+	user := models.Users{Id: num}
+
+	o.Delete(&user)
+
+	if err == nil {
+		reponse := map[string]string{
+			"message": "Deleted",
+		}
+
+		c.Data["json"] = reponse
+	}
+
 	c.ServeJSON()
 }
