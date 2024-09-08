@@ -2,8 +2,11 @@ package controllers
 
 import (
 	"encoding/json"
+	// "fmt"
 	"net/http"
+	"server/models"
 
+	"github.com/beego/beego/v2/client/orm"
 	beego "github.com/beego/beego/v2/server/web"
 )
 
@@ -14,16 +17,42 @@ type UserController struct {
 
 func (c *UserController) Get() {
 	// Define some data to send as JSON
-	response := map[string]interface{}{
-		"name":  "John Doe",
-		"email": "johndoe@example.com",
-		"age":   29,
+	// response := map[string]interface{}{
+	// 	"name":  "John Doe",
+	// 	"email": "johndoe@example.com",
+	// }
+
+	// // Set the data as JSON
+	// c.Data["json"] = user
+
+	// // Serve the JSON response
+	// c.ServeJSON()
+
+	// retrive data from db
+	o := orm.NewOrm()
+	var users []models.Users
+	total, err := o.QueryTable("users").All(&users)
+	if err != nil {
+		errorResponse := map[string]string{
+			"status": "failed",
+			"error":  "Resource not found",
+		}
+
+		c.Ctx.Output.SetStatus(404) // Set HTTP status code to 404
+		c.Data["json"] = errorResponse
+
+	} else {
+		c.Ctx.Output.SetStatus(200)
+		successResponse := map[string]interface{}{
+			"status":  "success",
+			"message": "Welcome to Beego!",
+			"total":   total,
+			"data":    users,
+		}
+
+		c.Data["json"] = successResponse
+
 	}
-
-	// Set the data as JSON
-	c.Data["json"] = response
-
-	// Serve the JSON response
 	c.ServeJSON()
 }
 
@@ -32,6 +61,7 @@ type UserInput struct {
 	Email string `json:"email"`
 }
 
+// adding user
 func (c *UserController) Post() {
 	var input UserInput
 	err := json.Unmarshal(c.Ctx.Input.RequestBody, &input)
